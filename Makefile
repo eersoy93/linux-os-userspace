@@ -1,14 +1,27 @@
-build: init.c
-	mkdir -p rootfs/bin rootfs/lib rootfs/lib64
-	gcc -o rootfs/bin/init init.c
-	chmod +x rootfs/bin/init
-	cp /lib/x86_64-linux-gnu/libc.so.6 rootfs/lib/
-	cp /lib64/ld-linux-x86-64.so.2 rootfs/lib64/
-	cd rootfs && find . | cpio -o --format=newc > ../rootfs.cpio
+ROOTFS_DIR = rootfs
+ROOTFS_BIN_DIR = ${ROOTFS_DIR}/bin
+ROOTFS_LIB_DIR = ${ROOTFS_DIR}/lib
+ROOTFS_LIB64_DIR = ${ROOTFS_DIR}/lib64
+
+SOURCE_FILES = $(wildcard src/*.c)
+TARGET = ${ROOTFS_BIN_DIR}/init
+FS_IMAGE = rootfs.cpio
+
+SYSTEM_LIBS = /lib/x86_64-linux-gnu/libc.so.6
+SYSTEM_LIBS64 = /lib64/ld-linux-x86-64.so.2
+SYSTEM_KERNEL = /boot/vmlinuz-$(shell uname -r)
+
+build: ${SOURCE_FILES}
+	mkdir -p ${ROOTFS_DIR}/bin ${ROOTFS_DIR}/lib ${ROOTFS_DIR}/lib64
+	gcc -o ${TARGET} ${SOURCE_FILES}
+	chmod +x ${TARGET}
+	cp ${SYSTEM_LIBS} ${ROOTFS_LIB_DIR}/
+	cp ${SYSTEM_LIBS64} ${ROOTFS_LIB64_DIR}/
+	cd ${ROOTFS_DIR} && find . | cpio -o --format=newc > ../${FS_IMAGE}
 
 run: build
-	sudo qemu-system-x86_64 -kernel /boot/vmlinuz-$(shell uname -r) -initrd ./rootfs.cpio -append "root=/dev/ram rdinit=/bin/init" -m 512
+	sudo qemu-system-x86_64 -kernel ${SYSTEM_KERNEL} -initrd ${FS_IMAGE} -append "root=/dev/ram rdinit=/bin/init" -m 512
 
 clean:
-	rm -rf rootfs rootfs.cpio
+	rm -rf ${ROOTFS_DIR} ${TARGET} ${FS_IMAGE}
 	
